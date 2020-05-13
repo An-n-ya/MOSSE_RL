@@ -30,9 +30,14 @@ s_frames = seq.s_frames;
         img = rgb2gray(img);
     end
         Hi = Ai./Bi;
-        fi = imcrop(img, rect);     
+        wsize    = [seq.init_rect(1,4), seq.init_rect(1,3)];
+        pos = [rect(1,2), rect(1,1)] + floor(wsize/2);
+        tsz = [200,200];
+        fi = get_pixels(img,pos,round(tsz),tsz);
+%         fi = imcrop(img, rect);     
         %[(rect(4)+1), (rect(3)+1)] = size(fi);
-        fi = preprocess(imresize(fi, [(rect(4)+1) (rect(3)+1)])); 
+        %fi = preprocess(imresize(fi, [(rect(4)+1) (rect(3)+1)])); 
+        fi = preprocess(fi); 
         try
             gi = uint8(255*mat2gray(ifft2(Hi.*fft2(fi))));
         catch 
@@ -41,43 +46,48 @@ s_frames = seq.s_frames;
         end
         maxval = max(gi(:));
         [P, Q] = find(gi == maxval);
-        dx = mean(P)-(rect(4)+1)/2;
-        dy = mean(Q)-(rect(3)+1)/2;
+        dx = mean(P)-tsz(2)/2;
+        dy = mean(Q)-tsz(1)/2;
       
         rect(1) = rect(1)+dy;
         rect(2) = rect(2)+dx;
-        fi = imcrop(img, rect); 
-        fi = preprocess(imresize(fi, [(rect(4)+1) (rect(3)+1)]));
+        pos = [rect(1,2), rect(1,1)] + floor(wsize/2);
+        fi = get_pixels(img,pos,round(tsz),tsz);
+%         fi = imcrop(img, rect); 
+        fi = preprocess(fi);
         Ai = Action.*(G.*conj(fft2(fi))) + (1-Action).*Ai;
         Bi = Action.*(fft2(fi).*conj(fft2(fi))) + (1-Action).*Bi;
         NextObs = double(gi);
         
         rect_anno = dlmread(['./anno/' seq.name '.txt']);
         score = calcRectInt(rect,rect_anno(frame,:));
-        if score < 0.65
-            Reward = -1;
+        if score < 0.2
+            Reward = -100;
         else
             Reward = 1;
         end
         
-        if score < 0.2 || frame == no_fram
+        if score < 0.2 
             IsDone = true;
+        elseif frame == no_fram
+            IsDone = true;
+            Reward = 100;
         else
             IsDone = false;
         end
             
-    % visualization
-    text_str = ['Frame: ' num2str(frame)];
-    box_color = 'green';
-    position=[1 1];
-    result = insertText(im, position,text_str,'FontSize',15,'BoxColor',...
-                     box_color,'BoxOpacity',0.4,'TextColor','white');
-    result = insertShape(result, 'Rectangle', rect, 'LineWidth', 3);
-    %imwrite(result, ['results_' dataset num2str(frame, '/%04i.jpg')]);
-	imshow(result);
-    drawnow;
-    %rect
-    
+%     % visualization
+%     text_str = ['Frame: ' num2str(frame)];
+%     box_color = 'green';
+%     position=[1 1];
+%     result = insertText(im, position,text_str,'FontSize',15,'BoxColor',...
+%                      box_color,'BoxOpacity',0.4,'TextColor','white');
+%     result = insertShape(result, 'Rectangle', rect, 'LineWidth', 3);
+%     %imwrite(result, ['results_' dataset num2str(frame, '/%04i.jpg')]);
+% 	imshow(result);
+%     drawnow;
+%     %rect
+%     
 
     
     LoggedSignals.State = {frame,Ai,Bi,seq,rect,G};

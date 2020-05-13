@@ -2,25 +2,40 @@ function [InitialObservation, LoggedSignal] = CF_Reset()
 % Reset function to place custom cart-pole environment into a random
 % initial state.
 base_path  = 'D:/data_seq';
-seqname = {'faceocc1','faceocc2'};
+%seqname = {'Bird1','faceocc1','faceocc2','Bird2','Bolt2','Box','Car1','Car2','Car24',};
+seqname = {'Bird1','Bird2','Bolt2','Box','Car1','Car2','Car24','ClifBar','Coupon','Crowds',...
+    'Dancer','Dancer2','Diving','Dog','DragonBaby','Girl2','Gym','Human2','Human3',...
+    'Human4','Human5','Human6','Human7','Human8','Human9','Jump','KiteSurf','Man',...
+    'Panda','RedTeam','Rubik','Skater','Skater2','Skating1','Skating2','Surfer',...
+    'Toy','Trans','Twinnings','Vase','soccer','matrix','deer','skating1',...
+    'shaking','singer1','singer2','carDark','car4','david','david2','sylvester',...
+    'trellis','fish','mhyang','coke','bolt','boy','dudek','crossing','couple',...
+    'football1','doll','girl','walking2','walking',...
+    'fleetFace','freeman1','freeman3','freeman4','david3','jumping','carScale',...
+    'skiing','dog1','suv','motorRolling','mountainBike','lemming','liquor',...
+    'woman','faceocc1','faceocc2','basketball','football','subway','tiger1',...
+    'tiger2','BlurCar1','BlurCar2','BlurCar3','BlurCar4','BlurBody','BlurFace',...
+    'Board','BlurOwl'};
 [~,sz] = size(seqname);
 choose_seq = seqname{ceil(rand * sz)};
 video_path = [base_path '/' choose_seq];
 [seq, ground_truth] = load_video_info(video_path,choose_seq);
-seq.startFrame = 1;
-seq.endFrame = seq.len;
+if seq.len > 100
+    seq.startFrame = ceil(rand*(seq.len-100));
+    seq.endFrame = seq.startFrame+100;
+else
+    seq.startFrame = 1;
+    seq.endFrame = seq.len;
+end
 seq.ground_truth=ground_truth;
+seq.init_rect = ground_truth(seq.startFrame,:);
 
 s_frames = seq.s_frames;
-params.no_fram  = seq.endFrame - seq.startFrame + 1;
-params.seq_st_frame = seq.startFrame;
-params.seq_en_frame = seq.endFrame;
-params.ground_truth=seq.ground_truth;
 
 %rect_anno = dlmread(['./anno/' seq.name '.txt']);
 
 % select target from first frame
-im = imread([video_path '/img/' s_frames{1}]);
+im = imread([video_path '/img/' s_frames{seq.startFrame}]);
 center = [seq.init_rect(2)+seq.init_rect(4)/2 seq.init_rect(1)+seq.init_rect(3)/2];
 
 % plot gaussian
@@ -37,13 +52,18 @@ if (size(im,3) == 3)
 else
     img = im;
 end
-img = imcrop(img, seq.init_rect);
-g = imcrop(g, seq.init_rect);
+wsize    = [seq.init_rect(1,4), seq.init_rect(1,3)];
+init_pos = [seq.init_rect(1,2), seq.init_rect(1,1)] + floor(wsize/2);
+tsz = [200,200];
+img = get_pixels(img,init_pos,round(tsz),tsz);
+g = get_pixels(g,init_pos,round(tsz),tsz);
+% img = imcrop(img, seq.init_rect);
+% g = imcrop(g, seq.init_rect);
 G = fft2(g);
 %将高斯滤波函数变换到频域
 height = size(g,1);
 width = size(g,2);
-fi = preprocess(imresize(img, [height width]));%imresize(img, [height width])将图片调整成滤波器的大小
+fi = preprocess(img);%imresize(img, [height width])将图片调整成滤波器的大小
 Ai = (G.*conj(fft2(fi)));
 Bi = (fft2(fi).*conj(fft2(fi)));
 N = 128;
@@ -53,6 +73,6 @@ for i = 1:N
     Bi = Bi + (fft2(fi).*conj(fft2(fi)));
 end
 % Return initial environment state variables as logged signals.
-LoggedSignal.State = {1,Ai,Bi,seq,seq.init_rect,G};
+LoggedSignal.State = {seq.startFrame,Ai,Bi,seq,seq.init_rect,G};
 InitialObservation = double(g);
 end

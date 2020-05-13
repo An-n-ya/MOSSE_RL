@@ -1,7 +1,7 @@
 %% 创建预设环境
 clc
 clear
-ObservationInfo = rlNumericSpec([163 115]);  %为环境创造连续的action或observation
+ObservationInfo = rlNumericSpec([200 200]);  %为环境创造连续的action或observation
 ObservationInfo.Name = 'CartPole States';
 
 ActionInfo = rlFiniteSetSpec([0 1]);  %为环境创造离散的action或observation
@@ -11,7 +11,7 @@ env = rlFunctionEnv(ObservationInfo,ActionInfo,'CF_Step','CF_Reset');
 %% Create PG agent
 %创建actor深度神经网络
 actorNetwork = [
-    imageInputLayer([163 115 1],'Normalization','none','Name','state')
+    imageInputLayer([200 200 1],'Normalization','none','Name','state')
     convolution2dLayer([5 5], 4, 'Padding', 2)
     reluLayer()
     maxPooling2dLayer(2, 'Stride', 3)
@@ -34,14 +34,22 @@ agent = rlPGAgent(actor);
 %设置训练参数
 trainOpts = rlTrainingOptions(...
     'MaxEpisodes', 1000, ...
-    'MaxStepsPerEpisode', 243, ...
+    'MaxStepsPerEpisode', 100, ...
     'Verbose', false, ...
     'StopTrainingCriteria','AverageReward',...
-    'StopTrainingValue',200,...
+    'StopTrainingValue',90,...
     'ScoreAveragingWindowLength',20);
 %绘制环境
 % plot(env);
 %训练模型
-trainingStats = train(agent,env,trainOpts);
+doTraining = true;
+if doTraining
+    % Train the agent.
+    trainingStats = train(agent,env,trainOpts);
+else
+    % Load pretrained parameters for the example.
+    load('finalAgent.mat');
+    %iLoadPretrainedParams(agent,actorParams,criticParams);
+end
 %保存模型
-save(opt.SaveAgentDirectory + "/finalAgent.mat",'agent')
+%save(opt.SaveAgentDirectory + "/finalAgent.mat",'agent')
